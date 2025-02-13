@@ -25,16 +25,28 @@ def get_stock_data(ticker):
         'target_mean': info.get('targetMeanPrice', None)   # Institutional mean target
     }
 
+import os
+import matplotlib.pyplot as plt
+
 def get_stock_chart(ticker):
     stock = yf.Ticker(ticker)
-    df = stock.history(period="1y")  # Get last 365 days of data
+    df = stock.history(period="1y")
 
     if df.empty:
         return None
 
-    df["50_MA"] = df["Close"].rolling(window=50).mean()  # 50-day MA
-    df["200_MA"] = df["Close"].rolling(window=200).mean()  # 200-day MA
+    df["50_MA"] = df["Close"].rolling(window=50).mean()
+    df["200_MA"] = df["Close"].rolling(window=200).mean()
 
+    # Ensure the static folder exists
+    static_folder = "static"
+    if not os.path.exists(static_folder):
+        os.makedirs(static_folder)
+
+    # Define chart path
+    chart_path = os.path.join(static_folder, f"{ticker}_chart.png")
+
+    # Create and save the chart
     plt.figure(figsize=(10, 5))
     plt.plot(df.index, df["Close"], label="Closing Price", color="blue")
     plt.plot(df.index, df["50_MA"], label="50-Day MA", color="orange")
@@ -46,12 +58,11 @@ def get_stock_chart(ticker):
     plt.legend()
     plt.grid(True)
 
-    # Save the chart as a static image
-    chart_path = f"static/{ticker}_chart.png"
     plt.savefig(chart_path)
     plt.close()
 
     return chart_path
+
 
 @app.route("/", methods=["GET", "POST"])
 def home():
