@@ -1,8 +1,11 @@
-from flask import Flask, request, render_template
+import os
 import yfinance as yf
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from flask import Flask, request, render_template
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
 
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
@@ -16,49 +19,56 @@ def get_stock_data(ticker):
         'growth_rate': info.get('earningsGrowth', None),
         'beta': info.get('beta', None),
         'short_interest': info.get('shortPercentOfFloat', None),
-        'institutional_shares': info.get('heldPercentInstitutions', None)
+        'institutional_shares': info.get('heldPercentInstitutions', None),
+        'target_high': info.get('targetHighPrice', None),  # Institutional high target
+        'target_low': info.get('targetLowPrice', None),    # Institutional low target
+        'target_mean': info.get('targetMeanPrice', None)   # Institutional mean target
     }
 
-def dcf_valuation(eps, growth_rate, discount_rate=0.1, years=10):
-    if eps is None or growth_rate is None:
+def get_stock_chart(ticker):
+    stock = yf.Ticker(ticker)
+    df = stock.history(period="1y")  # Get last 365 days of data
+
+    if df.empty:
         return None
-    future_cashflows = [(eps * (1 + growth_rate) ** i) / (1 + discount_rate) ** i for i in range(1, years + 1)]
-    terminal_value = (future_cashflows[-1] * (1 + growth_rate)) / (discount_rate - growth_rate)
-    intrinsic_value = sum(future_cashflows) + terminal_value
-    return intrinsic_value
+
+    df["50_MA"] = df["Close"].rolling(window=50).mean()  # 50-day MA
+    df["200_MA"] = df["Close"].rolling(window=200).mean()  # 200-day MA
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(df.index, df["Close"], label="Closing Price", color="blue")
+    plt.plot(df.index, df["50_MA"], label="50-Day MA", color="orange")
+    plt.plot(df.index, df["200_MA"], label="200-Day MA", color="red")
+    
+    plt.title(f"{ticker} Stock Price & Moving Averages")
+    plt.xlabel("Date")
+    plt.ylabel("Price (USD)")
+    plt.legend()
+    plt.grid(True)
+
+    # Save the chart as a static image
+    chart_path = f"static/{ticker}_chart.png"
+    plt.savefig(chart_path)
+    plt.close()
+
+    return chart_path
 
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
         ticker = request.form["ticker"].upper()
         data = get_stock_data(ticker)
-        
+
         if data["current_price"] is None:
             return render_template("index.html", error="Stock data unavailable.", ticker=ticker)
         
-        dcf_value = dcf_valuation(data["eps"], data["growth_rate"])
-        
-        valuation_metrics = {
-            "P/E Ratio": data["pe_ratio"],
-            "P/B Ratio": data["pb_ratio"],
-            "Beta": data["beta"],
-            "Short Interest (%)": data["short_interest"] * 100 if data["short_interest"] is not None else None,
-            "Institutional Ownership (%)": data["institutional_shares"] * 100 if data["institutional_shares"] is not None else None,
-            "DCF Fair Value": dcf_value,
-            "Current Price": data["current_price"]
-        }
+        chart_path = get_stock_chart(ticker)
 
-        # Generate recommendation based on DCF valuation
-        if dcf_value and dcf_value > data["current_price"] * 1.2:
-            recommendation = "BUY (Undervalued)"
-        elif dcf_value and dcf_value < data["current_price"] * 0.8:
-            recommendation = "SELL (Overvalued)"
-        else:
-            recommendation = "HOLD (Fairly Valued)"
-
-        return render_template("index.html", data=valuation_metrics, recommendation=recommendation, ticker=ticker)
+        return render_template("index.html", data=data, ticker=ticker, chart_path=chart_path)
 
     return render_template("index.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Ensure Flask runs on the correct port in Render
+    app.run(host="0.0.0.0", port=port, debug=True)
+
