@@ -11,7 +11,7 @@ def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
     
-    return {
+    data = {
         'current_price': info.get('currentPrice', None),
         'pe_ratio': info.get('trailingPE', None),
         'pb_ratio': info.get('priceToBook', None),
@@ -20,13 +20,42 @@ def get_stock_data(ticker):
         'beta': info.get('beta', None),
         'short_interest': info.get('shortPercentOfFloat', None),
         'institutional_shares': info.get('heldPercentInstitutions', None),
-        'target_high': info.get('targetHighPrice', None),  # Institutional high target
-        'target_low': info.get('targetLowPrice', None),    # Institutional low target
-        'target_mean': info.get('targetMeanPrice', None)   # Institutional mean target
+        'target_high': info.get('targetHighPrice', None),  
+        'target_low': info.get('targetLowPrice', None),    
+        'target_mean': info.get('targetMeanPrice', None)  
     }
+    
+    data['recommendation'] = get_recommendation(data)  # Add recommendation
 
-import os
-import matplotlib.pyplot as plt
+    return data
+
+
+def get_recommendation(data):
+    """Determine Buy/Hold/Sell recommendation for a moderately aggressive investor."""
+    pe_ratio = data['pe_ratio']
+    growth_rate = data['growth_rate']
+    beta = data['beta']
+    current_price = data['current_price']
+    target_mean = data['target_mean']
+    target_high = data['target_high']
+
+    if None in (pe_ratio, growth_rate, beta, current_price, target_mean, target_high):
+        return "Insufficient Data for Recommendation"
+
+    # Buy Condition: Low P/E, positive growth, moderate to high risk, undervalued
+    if pe_ratio < 20 and growth_rate > 0 and beta > 1.0 and current_price < target_mean:
+        return "BUY - Strong fundamentals with growth potential and moderate risk."
+
+    # Hold Condition: Fair valuation, moderate growth, stable beta, fairly priced
+    if 20 <= pe_ratio <= 30 and 0 <= growth_rate <= 0.1 and 0.8 <= beta <= 1.2:
+        return "HOLD - Stock is fairly valued with stable outlook."
+
+    # Sell Condition: Overvalued, weak growth, excessive volatility
+    if pe_ratio > 30 or growth_rate < 0 or beta > 1.5 or current_price > target_high:
+        return "SELL - Overvalued or declining fundamentals."
+
+    return "HOLD - No strong buy or sell signal."
+
 
 def get_stock_chart(ticker):
     stock = yf.Ticker(ticker)
@@ -38,15 +67,12 @@ def get_stock_chart(ticker):
     df["50_MA"] = df["Close"].rolling(window=50).mean()
     df["200_MA"] = df["Close"].rolling(window=200).mean()
 
-    # Ensure the static folder exists
     static_folder = "static"
     if not os.path.exists(static_folder):
         os.makedirs(static_folder)
 
-    # Define chart path
     chart_path = os.path.join(static_folder, f"{ticker}_chart.png")
 
-    # Create and save the chart
     plt.figure(figsize=(10, 5))
     plt.plot(df.index, df["Close"], label="Closing Price", color="blue")
     plt.plot(df.index, df["50_MA"], label="50-Day MA", color="orange")
@@ -79,7 +105,7 @@ def home():
 
     return render_template("index.html")
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Ensure Flask runs on the correct port in Render
-    app.run(host="0.0.0.0", port=port, debug=True)
 
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
