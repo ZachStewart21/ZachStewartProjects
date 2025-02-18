@@ -32,14 +32,14 @@ def get_stock_data(ticker):
 
 def get_recommendation(data):
     """Determine Buy/Hold/Sell recommendation for a moderately aggressive investor."""
-    pe_ratio = data['pe_ratio']
-    growth_rate = data['growth_rate']
+    eps = data['eps']
+    short_interest = data['short_interest']
     beta = data['beta']
     current_price = data['current_price']
     target_mean = data['target_mean']
     target_high = data['target_high']
 
-    if None in (pe_ratio, growth_rate, beta, current_price, target_mean, target_high):
+    if None in (eps, short_interest, beta, current_price, target_mean, target_high):
         return "Insufficient Data for Recommendation"
 
     # Buy Condition: Low P/E, positive growth, moderate to high risk, undervalued
