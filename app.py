@@ -43,15 +43,15 @@ def get_recommendation(data):
         return "Insufficient Data for Recommendation"
 
     # Buy Condition: Low P/E, positive growth, moderate to high risk, undervalued
-    if pe_ratio < 20 and growth_rate > 0 and beta > 1.0 and current_price < target_mean:
+    if short_interest < .10 and eps > 0.1 and beta > 1.0 and current_price < target_mean:
         return "BUY - Strong fundamentals with growth potential and moderate risk."
 
     # Hold Condition: Fair valuation, moderate growth, stable beta, fairly priced
-    if 20 <= pe_ratio <= 30 and 0 <= growth_rate <= 0.1 and 0.8 <= beta <= 1.2:
+    if .1 <= short_interest <= .25 and 0 <= eps <= 0.1 and 0.8 <= beta <= 1.2:
         return "HOLD - Stock is fairly valued with stable outlook."
 
     # Sell Condition: Overvalued, weak growth, excessive volatility
-    if pe_ratio > 30 or growth_rate < 0 or beta > 1.5 or current_price > target_high:
+    if short_interest > .25 or eps < 0 or beta > 1.5 or current_price > target_high:
         return "SELL - Overvalued or declining fundamentals."
 
     return "HOLD - No strong buy or sell signal."
