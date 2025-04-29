@@ -10,7 +10,16 @@ app = Flask(__name__, template_folder="templates")
 def get_stock_data(ticker):
     stock = yf.Ticker(ticker)
     info = stock.info
-    
+    history = stock.history(period="1y")  # <--- Pull historical prices here
+
+    if not history.empty:
+        history["Daily Return"] = history["Close"].pct_change()
+        expected_return = history["Daily Return"].mean() * 252  # Annualized expected return
+        risk = history["Daily Return"].std() * np.sqrt(252)     # Annualized volatility
+    else:
+        expected_return = None
+        risk = None
+
     data = {
         'current_price': info.get('currentPrice', None),
         'pe_ratio': info.get('trailingPE', None),
@@ -22,10 +31,12 @@ def get_stock_data(ticker):
         'institutional_shares': info.get('heldPercentInstitutions', None),
         'target_high': info.get('targetHighPrice', None),  
         'target_low': info.get('targetLowPrice', None),    
-        'target_mean': info.get('targetMeanPrice', None)  
+        'target_mean': info.get('targetMeanPrice', None),
+        'expected_return': expected_return,    # <<< New
+        'risk': risk                           # <<< New
     }
     
-    data['recommendation'] = get_recommendation(data)  # Add recommendation
+    data['recommendation'] = get_recommendation(data)
 
     return data
 
