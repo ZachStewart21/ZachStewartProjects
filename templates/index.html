@@ -12,12 +12,19 @@
         img { max-width: 90%; height: auto; margin-top: 20px; }
         .green { color: green; font-weight: bold; }
         .red { color: red; font-weight: bold; }
+        .blue { color: blue; font-weight: bold; }
     </style>
 </head>
 <body>
     <h1>Stock Analysis Tool</h1>
     <form method="POST">
         <input type="text" name="ticker" placeholder="Enter Stock Ticker (e.g., AAPL)" required>
+        <select name="strategy" required>
+            <option value="">Select Investment Strategy</option>
+            <option value="risk_averse">Risk Averse</option>
+            <option value="moderate">Moderate</option>
+            <option value="high_risk">High Risk</option>
+        </select>
         <button type="submit">Analyze</button>
     </form>
 
@@ -27,6 +34,18 @@
 
     {% if data %}
         <h2>Results for {{ ticker }}</h2>
+        <p>
+            <strong>Selected Investment Strategy:</strong>
+            {% if strategy == "risk_averse" %}
+                <span class="green">{{ strategy.replace('_', ' ').title() }}</span>
+            {% elif strategy == "moderate" %}
+                <span class="blue">{{ strategy.replace('_', ' ').title() }}</span>
+            {% elif strategy == "high_risk" %}
+                <span class="red">{{ strategy.replace('_', ' ').title() }}</span>
+            {% else %}
+                {{ strategy.replace('_', ' ').title() }}
+            {% endif %}
+        </p>
 
         <table>
             <tr>
@@ -71,7 +90,7 @@
                     </tr>
                 {% else %}
                     <tr>
-                        <th>{{ key.replace("_", " ").title() }}</th>
+                        <th>{{ key.replace('_', ' ').title() }}</th>
                         <td>{{ value if value is not none else 'N/A' }}</td>
                     </tr>
                 {% endif %}
