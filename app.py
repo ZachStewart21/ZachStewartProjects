@@ -72,9 +72,9 @@ def get_recommendation(data, strategy):
 
     return f"HOLD - No strong buy/sell signal for {strategy.replace('_', ' ').title()} strategy."
 
-def get_stock_chart(ticker):
+def get_stock_chart(ticker, time_range="6mo", ma_list=[50]):
     stock = yf.Ticker(ticker)
-    df = stock.history(period="6mo")
+    df = stock.history(period=time_range)
 
     if df.empty:
         return None
@@ -90,27 +90,17 @@ def get_stock_chart(ticker):
         name='Candlestick'
     ))
 
-    df['MA20'] = df['Close'].rolling(window=20).mean()
-    df['MA50'] = df['Close'].rolling(window=50).mean()
-
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df['MA20'],
-        mode='lines',
-        line=dict(color='blue', width=1),
-        name='20-Day MA'
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df['MA50'],
-        mode='lines',
-        line=dict(color='orange', width=1),
-        name='50-Day MA'
-    ))
+    for ma in ma_list:
+        df[f"MA{ma}"] = df["Close"].rolling(window=ma).mean()
+        fig.add_trace(go.Scatter(
+            x=df.index,
+            y=df[f"MA{ma}"],
+            mode="lines",
+            name=f"{ma}-Day MA"
+        ))
 
     fig.update_layout(
-        title=f"{ticker} - 6 Month Interactive Candlestick Chart",
+        title=f"{ticker} - {time_range.upper()} Candlestick Chart",
         xaxis_title="Date",
         yaxis_title="Price (USD)",
         template="plotly_white",
@@ -118,25 +108,32 @@ def get_stock_chart(ticker):
         height=600
     )
 
-    chart_html = fig.to_html(full_html=False)
-    return chart_html
+    return fig.to_html(full_html=False)
 
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
         ticker = request.form["ticker"].upper()
         strategy = request.form["strategy"]
+        time_range = request.form.get("range", "6mo")
+        ma_values = request.form.getlist("ma")
+        ma_values = [int(ma) for ma in ma_values if ma.isdigit()]
 
         data = get_stock_data(ticker, strategy)
 
         if data["current_price"] is None:
             return render_template("index.html", error="Stock data unavailable.", ticker=ticker)
 
-        chart_html = get_stock_chart(ticker)
+        chart_html = get_stock_chart(ticker, time_range, ma_values)
 
         return render_template("index.html", data=data, ticker=ticker, chart_html=chart_html, strategy=strategy)
 
     return render_template("index.html")
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
