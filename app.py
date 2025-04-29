@@ -3,6 +3,7 @@ import yfinance as yf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import mplfinance as mpf  # New: for candlestick charts
 from flask import Flask, request, render_template
 
 app = Flask(__name__, template_folder="templates")
@@ -51,7 +52,7 @@ def get_recommendation(data, strategy):
     if None in (eps, short_interest, beta, current_price, target_mean, target_high):
         return "Insufficient Data for Recommendation"
 
-    # Strategy-specific thresholds
+    # Adjust thresholds based on user-selected strategy
     if strategy == "risk_averse":
         beta_threshold = 1.0
         short_interest_threshold = 0.10
@@ -77,31 +78,36 @@ def get_recommendation(data, strategy):
 
 def get_stock_chart(ticker):
     stock = yf.Ticker(ticker)
-    df = stock.history(period="1y")
+    df = stock.history(period="6mo")  # 6 months for better candlestick view
 
     if df.empty:
         return None
 
-    df["50_MA"] = df["Close"].rolling(window=50).mean()
-    df["200_MA"] = df["Close"].rolling(window=200).mean()
-
+    # Ensure static folder exists
     static_folder = "static"
     if not os.path.exists(static_folder):
         os.makedirs(static_folder)
 
     chart_path = os.path.join(static_folder, f"{ticker}_chart.png")
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(df.index, df["Close"], label="Closing Price", color="blue")
-    plt.plot(df.index, df["50_MA"], label="50-Day MA", color="orange")
-    plt.plot(df.index, df["200_MA"], label="200-Day MA", color="red")
-    plt.title(f"{ticker} Stock Price & Moving Averages")
-    plt.xlabel("Date")
-    plt.ylabel("Price (USD)")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(chart_path)
-    plt.close()
+    # Setup market colors
+    mc = mpf.make_marketcolors(
+        up='g', down='r',
+        edge='inherit', wick='gray',
+        volume='in'
+    )
+    style = mpf.make_mpf_style(marketcolors=mc, gridstyle=":", facecolor="white")
+
+    # Plot candlestick chart
+    mpf.plot(
+        df,
+        type='candle',
+        style=style,
+        volume=True,
+        title=f"{ticker} - 6 Month Candlestick Chart",
+        mav=(20, 50),
+        savefig=dict(fname=chart_path, dpi=100, bbox_inches='tight')
+    )
 
     return chart_path
 
@@ -110,6 +116,7 @@ def home():
     if request.method == "POST":
         ticker = request.form["ticker"].upper()
         strategy = request.form["strategy"]
+
         data = get_stock_data(ticker, strategy)
 
         if data["current_price"] is None:
