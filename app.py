@@ -7,6 +7,42 @@ from flask import Flask, request, render_template
 
 app = Flask(__name__, template_folder="templates")
 
+def get_yoy_revenue_growth(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        financials = stock.financials.T  # Transpose to make years the index
+
+        if "Total Revenue" not in financials.columns or len(financials) < 2:
+            return None, None
+
+        revenue = financials["Total Revenue"].sort_index(ascending=True)
+        revenue = revenue[-6:]  # 6 years for 5 YoY changes
+
+        yoy_growth = revenue.pct_change().dropna() * 100
+        yoy_dict = yoy_growth.round(2).to_dict()
+
+        # Build Plotly bar chart
+        fig = go.Figure(data=[
+            go.Bar(
+                x=[str(year.year) for year in yoy_growth.index],
+                y=list(yoy_growth.values),
+                marker_color=['green' if x >= 0 else 'red' for x in yoy_growth.values]
+            )
+        ])
+        fig.update_layout(
+            title="Year-over-Year Revenue Growth (%)",
+            xaxis_title="Year",
+            yaxis_title="Growth (%)",
+            template="plotly_white",
+            height=400
+        )
+        chart_html = fig.to_html(full_html=False)
+
+        return yoy_dict, chart_html
+    except Exception as e:
+        print(f"[ERROR] Revenue growth fetch failed: {e}")
+        return None, None
+
 def get_stock_data(ticker, strategy):
     stock = yf.Ticker(ticker)
     info = stock.info
@@ -19,6 +55,8 @@ def get_stock_data(ticker, strategy):
     else:
         expected_return = None
         risk = None
+
+    revenue_growth_data, revenue_growth_chart = get_yoy_revenue_growth(ticker)
 
     data = {
         'current_price': info.get('currentPrice', None),
@@ -33,7 +71,9 @@ def get_stock_data(ticker, strategy):
         'target_low': info.get('targetLowPrice', None),
         'target_mean': info.get('targetMeanPrice', None),
         'expected_return': expected_return,
-        'risk': risk
+        'risk': risk,
+        'revenue_growth': revenue_growth_data,
+        'revenue_growth_chart': revenue_growth_chart
     }
 
     data['recommendation'] = get_recommendation(data, strategy)
@@ -129,11 +169,6 @@ def home():
         return render_template("index.html", data=data, ticker=ticker, chart_html=chart_html, strategy=strategy)
 
     return render_template("index.html")
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
