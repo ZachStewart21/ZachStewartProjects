@@ -26,6 +26,17 @@ This is a Flask-based web application that allows users to analyze publicly trad
 
 ---
 
+**Install Dependencies**
+
+Flask
+yfinance
+pandas
+numpy
+plotly
+gunicorn
+
+---
+
 ## 📂 Project Structure
 stock-analysis-app/
 │
