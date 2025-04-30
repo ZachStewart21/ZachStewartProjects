@@ -149,7 +149,29 @@
                                             {% endif %}
                                         </td>
                                     </tr>
-                                {% else %}
+                                {% elif key == 'revenue_growth' %}
+                                    <tr>
+                                        <th>YoY Revenue Growth</th>
+                                        <td>
+                                            {% if value %}
+                                                <ul class="list-unstyled mb-0">
+                                                    {% for year, growth in value.items() %}
+                                                        <li>
+                                                            <strong>{{ year }}:</strong>
+                                                            {% if growth >= 0 %}
+                                                                <span class="green">{{ '{:+.2f}%'.format(growth) }}</span>
+                                                            {% else %}
+                                                                <span class="red">{{ '{:+.2f}%'.format(growth) }}</span>
+                                                            {% endif %}
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% elif key != 'revenue_growth_chart' %}
                                     <tr>
                                         <th>{{ key.replace('_', ' ').title() }}</th>
                                         <td>{{ value if value is not none else 'N/A' }}</td>
@@ -160,14 +182,21 @@
                     </table>
                 </div>
 
-                <!-- Chart Output -->
+                <!-- Stock Chart -->
                 {% if chart_html %}
                     <div class="chart-container">
-                        <h3 class="text-center">📊 Interactive Stock Chart</h3>
+                        <h3 class="text-center">📊 Stock Chart</h3>
                         <div>{{ chart_html | safe }}</div>
                     </div>
                 {% endif %}
 
+                <!-- Revenue Growth Chart -->
+                {% if data.revenue_growth_chart %}
+                    <div class="chart-container">
+                        <h3 class="text-center">📈 Revenue Growth (YoY)</h3>
+                        <div>{{ data.revenue_growth_chart | safe }}</div>
+                    </div>
+                {% endif %}
             </div>
         </div>
     {% endif %}
@@ -175,6 +204,6 @@
 
 <!-- Bootstrap 5 JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
+
